@@ -86,8 +86,10 @@ async function onUpload( file ) {
         const R = "Red Component"
         const G = "Green Component"
         const B = "Blue Component"
-        let color = [ colorXML[ R ], colorXML[ G ], colorXML[ B ] ]
-        return "#" + color.map( x => Math.floor( x * 255 ).toString( 16 ) ).join( "" ).toUpperCase()
+        return "#" + [ colorXML[ R ], colorXML[ G ], colorXML[ B ] ]
+            .map( x => Math.floor( x * 255 ).toString( 16 ).padStart( 2, "0" ) )
+            .join( "" )
+            .toUpperCase()
     }
 
     const winTermScheme = Object.fromEntries(
