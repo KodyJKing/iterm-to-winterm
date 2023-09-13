@@ -13,8 +13,37 @@ window.onload = function () {
 }
 
 function parseXML( xml ) {
-    const parser = new XMLParser()
-    return parser.parse( xml )
+    const parser = new XMLParser( { preserveOrder: true, removeNSPrefix: true, ignoreDeclaration: true } )
+    return convertXML( parser.parse( xml ) )
+}
+
+function xmlText( xml ) { return xml[ 0 ][ "#text" ] }
+
+function convertDict( xml ) {
+    let entries = []
+    for ( let i = 0; i < xml.dict.length; i += 2 ) {
+        let key = convertXML( xml.dict[ i + 0 ] )
+        let value = convertXML( xml.dict[ i + 1 ] )
+        entries.push( [ key, value ] )
+    }
+    return Object.fromEntries( entries )
+}
+
+function convertXML( xml ) {
+    if ( xml instanceof Array ) return xml.map( convertXML )
+    if ( xml.dict ) return convertDict( xml )
+    if ( xml.real ) return parseFloat( xmlText( xml.real ) )
+    if ( xml.string ) return xmlText( xml.string )
+    if ( xml.key ) return xmlText( xml.key )
+
+    let entries = Object.entries( xml )
+    if ( entries.length > 1 )
+        throw new Error( "Cannot convert XML:", JSON.stringify( xml ) )
+    if ( entries.length == 0 )
+        return undefined
+
+    let [ type, tags ] = entries[ 0 ]
+    return { type, tags: convertXML( tags ) }
 }
 
 /** @param {File} file  */
@@ -23,7 +52,10 @@ async function onUpload( file ) {
     name = name.match( /^(\w+)\.\w+$/ )[ 1 ]
 
     const itermXML = await file.text()
-    const itermScheme = parseXML( itermXML )
+    const itermSchemeTags = parseXML( itermXML )
+    const schemeList = itermSchemeTags.find( x => x.type === "plist" ).tags[ 0 ]
+
+    // console.log( JSON.stringify( schemeList, null, 1 ) )
 
     // Color mappings taken from: https://rakhesh.com/powershell/converting-iterm2-colours-to-windows-terminal-colors/
     const colorMapping = {
@@ -49,18 +81,20 @@ async function onUpload( file ) {
         "Foreground Color": "foreground",
     }
 
-    function colorToHex( color ) {
-        let [ a, b, g, r ] = color
-        color = [ r, g, b ]
+
+    function colorToHex( colorXML ) {
+        const R = "Red Component"
+        const G = "Green Component"
+        const B = "Blue Component"
+        let color = [ colorXML[ R ], colorXML[ G ], colorXML[ B ] ]
         return "#" + color.map( x => Math.floor( x * 255 ).toString( 16 ) ).join( "" ).toUpperCase()
     }
 
-    const { key, dict } = itermScheme.plist.dict
     const winTermScheme = Object.fromEntries(
-        key.map(
-            ( key, index ) => [
+        Object.entries( schemeList ).map(
+            ( [ key, color ] ) => [
                 colorMapping[ key ],
-                colorToHex( dict[ index ].real )
+                colorToHex( color )
             ]
         ).filter(
             ( [ key, _color ] ) => key !== undefined
