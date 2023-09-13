@@ -1,15 +1,15 @@
 import './style.css'
 import { XMLParser } from 'fast-xml-parser'
 
-/** @type {HTMLInputElement} */
-const fileInput = document.getElementById( "fileInput" )
-/** @type {HTMLOutputElement} */
-const output = document.getElementById( "output" )
+window.onload = function () {
+    /** @type {HTMLInputElement} */
+    const fileInput = document.getElementById( "fileInput" )
 
-fileInput.onchange = async function ( e ) {
-    if ( fileInput.files )
-        for ( let file of fileInput.files )
-            onUpload( file )
+    fileInput.onchange = async function ( e ) {
+        if ( fileInput.files )
+            for ( let file of fileInput.files )
+                onUpload( file )
+    }
 }
 
 function parseXML( xml ) {
@@ -22,8 +22,8 @@ async function onUpload( file ) {
     let { name } = file
     name = name.match( /^(\w+)\.\w+$/ )[ 1 ]
 
-    let itermXML = await file.text()
-    let iterm = parseXML( itermXML )
+    const itermXML = await file.text()
+    const itermScheme = parseXML( itermXML )
 
     // Color mappings taken from: https://rakhesh.com/powershell/converting-iterm2-colours-to-windows-terminal-colors/
     const colorMapping = {
@@ -55,8 +55,8 @@ async function onUpload( file ) {
         return "#" + color.map( x => Math.floor( x * 255 ).toString( 16 ) ).join( "" ).toUpperCase()
     }
 
-    let { key, dict } = iterm.plist.dict
-    let schemaMap = Object.fromEntries(
+    const { key, dict } = itermScheme.plist.dict
+    const winTermScheme = Object.fromEntries(
         key.map(
             ( key, index ) => [
                 colorMapping[ key ],
@@ -67,6 +67,7 @@ async function onUpload( file ) {
         ).concat( [ [ "name", name ] ] )
     )
 
-    output.value = JSON.stringify( schemaMap, null, 2 )
+    const output = document.getElementById( "output" )
+    output.value = JSON.stringify( winTermScheme, null, 2 )
 }
 
